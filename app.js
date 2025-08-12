@@ -2355,16 +2355,48 @@ class LiteratureManager {
                 
                 // Load papers from static data
                 const staticPapers = this.staticLoader.getAllPapers();
-                this.papers = staticPapers.map(paper => ({
-                    ...paper,
-                    thumbnail: this.staticLoader.getThumbnail(paper.id)
-                }));
+                
+                // Convert static data format to internal format
+                this.papers = staticPapers.map(paper => {
+                    console.log('Processing paper:', paper.title);
+                    
+                    return {
+                        ...paper,
+                        // Ensure required fields are present with fallbacks
+                        id: paper.id,
+                        title: paper.title || 'Untitled',
+                        authors: Array.isArray(paper.authors) ? paper.authors : 
+                                paper.authors ? [paper.authors] : ['Unknown Author'],
+                        year: paper.year || new Date().getFullYear(),
+                        journal: paper.journal || paper.venue || 'Unknown Journal',
+                        researchArea: paper.researchArea || 'General',
+                        methodology: paper.methodology || 'Experimental', 
+                        studyType: paper.studyType || 'Empirical',
+                        keywords: Array.isArray(paper.keywords) ? paper.keywords : [],
+                        citations: paper.citations || 0,
+                        downloads: paper.downloads || 0,
+                        hIndex: paper.hIndex || Math.floor((paper.citations || 0) / 3),
+                        abstract: paper.abstract || '',
+                        doi: paper.doi || '',
+                        websiteUrl: paper.websiteUrl || '#',
+                        pdfUrl: paper.pdfUrl || '#',
+                        // Get thumbnail from static loader
+                        thumbnail: this.staticLoader.getThumbnail(paper.id)
+                    };
+                });
                 
                 this.filteredPapers = [...this.papers];
                 console.log(`Loaded ${this.papers.length} papers from static data`);
+                console.log('Sample paper data:', this.papers[0]);
                 
                 this.showNotification(`📚 Loaded ${this.papers.length} papers from static data`, 'success');
-                this.updateUI();
+                
+                // Initialize UI components
+                setTimeout(() => {
+                    this.initializeFilters();
+                    this.applyFilters();
+                    console.log('Filters applied, papers should be visible now');
+                }, 100);
                 
                 return true;
             }
