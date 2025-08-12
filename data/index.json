@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-08-12T10:44:25.397Z",
+  "totalPapers": 1,
+  "categories": {
+    "Accessible Interaction": [
+      "paper_1754995457989_f2efsoo68"
+    ]
+  },
+  "years": [
+    2013
+  ],
+  "venues": [],
+  "keywords": [
+    "Touchscreen",
+    "YouTube",
+    "assistive technology",
+    "iPad",
+    "iPhone.  ACM Classification Keywords  H.",
+    "motor   impairments",
+    "physical   disabilities"
+  ],
+  "dataFiles": {
+    "papers": "papers.json",
+    "thumbnails": "thumbnails.json"
+  }
+}

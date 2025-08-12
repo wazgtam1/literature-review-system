@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-08-12T10:44:25.397Z",
+  "totalPapers": 1,
+  "papers": [
+    {
+      "id": "paper_1754995457989_f2efsoo68",
+      "title": "2013 - Analyzing user-generated youtube videos to understand touchscreen use by people with motor impairments",
+      "authors": [
+        "Impairment",
+        "Rehabilitation C"
+      ],
+      "year": 2013,
+      "researchArea": "Accessible Interaction",
+      "keywords": [
+        "Touchscreen",
+        "motor   impairments",
+        "physical   disabilities",
+        "assistive technology",
+        "YouTube",
+        "iPad",
+        "iPhone.  ACM Classification Keywords  H."
+      ],
+      "citations": 0,
+      "abstract": "Analyzing User-Generated YouTube Videos to Understand Touchscreen Use by People with Motor Impairments  Lisa Anthony  UMBC Information Systems 1000 Hilltop Circle Baltimore MD 21250 USA lanthony@umbc.edu  YooJin Kim  College of Information Studies University of Maryland College Park MD 20742 USA yki...",
+      "doi": "",
+      "hasFile": true,
+      "hasThumbnail": true,
+      "dataFile": "papers/paper_1754995457989_f2efsoo68.json"
+    }
+  ]
+}
