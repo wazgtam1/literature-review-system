@@ -153,31 +153,44 @@ class StaticDataExporter {
                 const paperData = { ...paper };
                 
                 // Convert PDF to base64 if available
+                console.log(`Processing paper ${paper.id}: title="${paper.title}"`);
+                console.log(`Paper has pdfFile:`, !!paper.pdfFile);
+                console.log(`Storage available:`, !!(this.literatureManager.storage && this.literatureManager.storage.db));
+                
                 if (paper.pdfFile || (this.literatureManager.storage && this.literatureManager.storage.db)) {
                     try {
                         let pdfData = null;
                         
                         if (paper.pdfFile) {
                             // Convert File to base64
+                            console.log(`Converting pdfFile to base64 for paper ${paper.id}`);
                             pdfData = await this.fileToBase64(paper.pdfFile);
                         } else if (this.literatureManager.storage && this.literatureManager.storage.db) {
                             // Get PDF from IndexedDB
+                            console.log(`Getting PDF from IndexedDB for paper ${paper.id}`);
                             const pdfFile = await this.literatureManager.storage.getPDFFile(paper.id);
+                            console.log(`Retrieved PDF from IndexedDB:`, !!pdfFile, pdfFile ? `size: ${pdfFile.blob?.size || 'unknown'}` : '');
                             if (pdfFile && pdfFile.blob) {
                                 pdfData = await this.blobToBase64(pdfFile.blob);
                                 paperData.originalFileName = pdfFile.fileName;
+                                console.log(`Converted PDF to base64, length: ${pdfData?.length || 'unknown'}`);
                             }
                         }
                         
                         if (pdfData) {
                             paperData.pdfBase64 = pdfData;
                             paperData.hasFile = true;
+                            console.log(`✅ Successfully added PDF data for paper ${paper.id}`);
+                        } else {
+                            console.log(`❌ No PDF data found for paper ${paper.id}`);
                         }
                         
                     } catch (error) {
                         console.warn(`Failed to convert PDF for paper ${paper.id}:`, error);
                         paperData.hasFile = false;
                     }
+                } else {
+                    console.log(`⚠️ No PDF source available for paper ${paper.id}`);
                 }
                 
                 // Clean up non-serializable data
