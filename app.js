@@ -2610,7 +2610,21 @@ class LiteratureManager {
         if (paper.pdfUrl && paper.pdfUrl !== '#') {
             this.showPdfViewer(paper.pdfUrl, paper.title);
         } else {
-            this.showNotification('PDF file not available for this paper', 'warning');
+            // Check if external URL is available
+            if (paper.websiteUrl && paper.websiteUrl !== '#' && paper.websiteUrl !== '') {
+                this.showNotification(`PDF file not available. You can access the paper at: ${paper.websiteUrl}`, 'info', 5000);
+                if (confirm('PDF file not available. Would you like to open the external link?')) {
+                    window.open(paper.websiteUrl, '_blank');
+                }
+            } else if (paper.doi && paper.doi !== '') {
+                const doiUrl = `https://doi.org/${paper.doi}`;
+                this.showNotification(`PDF file not available. You can access the paper via DOI: ${doiUrl}`, 'info', 5000);
+                if (confirm('PDF file not available. Would you like to open the DOI link?')) {
+                    window.open(doiUrl, '_blank');
+                }
+            } else {
+                this.showNotification('PDF file not available for this paper', 'warning');
+            }
         }
     }
 }
