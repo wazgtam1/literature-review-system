@@ -2566,13 +2566,29 @@ class LiteratureManager {
                 // Load full paper data including PDF from static data
                 const paperData = await this.staticLoader.getPaperData(paperId);
                 
-                if (paperData && paperData.pdfBase64) {
+                if (paperData && (paperData.pdfUrl || paperData.pdfBase64)) {
                     console.log('PDF data loaded, showing viewer...');
-                    // Use the base64 PDF data directly
-                    this.showPdfViewer(paperData.pdfBase64, paperData.title);
+                    // Use the blob URL if available, otherwise fall back to base64
+                    const pdfSource = paperData.pdfUrl || paperData.pdfBase64;
+                    this.showPdfViewer(pdfSource, paperData.title);
                 } else {
                     console.error('No PDF data found for paper:', paperId);
-                    this.showNotification('PDF file not available for this paper', 'warning');
+                    // Check if external URL is available
+                    if (paperData && paperData.websiteUrl && paperData.websiteUrl !== '#' && paperData.websiteUrl !== '') {
+                        this.showNotification(`PDF file not available in static mode. You can access the paper at: ${paperData.websiteUrl}`, 'info', 5000);
+                        // Optionally open the external URL
+                        if (confirm('PDF file not available in static mode. Would you like to open the external link?')) {
+                            window.open(paperData.websiteUrl, '_blank');
+                        }
+                    } else if (paperData && paperData.doi && paperData.doi !== '') {
+                        const doiUrl = `https://doi.org/${paperData.doi}`;
+                        this.showNotification(`PDF file not available. You can access the paper via DOI: ${doiUrl}`, 'info', 5000);
+                        if (confirm('PDF file not available in static mode. Would you like to open the DOI link?')) {
+                            window.open(doiUrl, '_blank');
+                        }
+                    } else {
+                        this.showNotification('PDF file not available for this paper in static mode', 'warning');
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load PDF in static mode:', error);
