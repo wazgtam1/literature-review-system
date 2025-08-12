@@ -1047,14 +1047,19 @@ class LiteratureManager {
                     <div class="detail-section">
                         <div class="detail-label">Links</div>
                         <div class="detail-links">
-                            ${paper.pdfUrl && paper.pdfUrl !== '#' ? 
-                                (paper.pdfUrl.startsWith('data:') ? 
-                                    `<button class="detail-link detail-link--primary" onclick="literatureManager.showPdfViewerAndCloseModal('${paper.pdfUrl}', '${paper.title}')">📄 View PDF Document (Built-in Viewer)</button>` :
-                                    paper.pdfUrl.startsWith('blob:') ?
-                                        `<span class="detail-link detail-link--disabled">⚠️ PDF document link expired</span>` :
-                                        `<a href="${paper.pdfUrl}" target="_blank" class="detail-link detail-link--primary">📄 View PDF Document</a>`
-                                ) :
-                                `<span class="detail-link detail-link--disabled">PDF document unavailable</span>`
+                            ${this.isStaticMode ? 
+                                // Static mode: use special handler for PDF viewing
+                                `<button class="detail-link detail-link--primary" onclick="literatureManager.openPDFViewerStatic('${paper.id}')">📄 View PDF Document (Built-in Viewer)</button>` :
+                                // Local mode: use existing logic
+                                (paper.pdfUrl && paper.pdfUrl !== '#' ? 
+                                    (paper.pdfUrl.startsWith('data:') ? 
+                                        `<button class="detail-link detail-link--primary" onclick="literatureManager.showPdfViewerAndCloseModal('${paper.pdfUrl}', '${paper.title}')">📄 View PDF Document (Built-in Viewer)</button>` :
+                                        paper.pdfUrl.startsWith('blob:') ?
+                                            `<span class="detail-link detail-link--disabled">⚠️ PDF document link expired</span>` :
+                                            `<a href="${paper.pdfUrl}" target="_blank" class="detail-link detail-link--primary">📄 View PDF Document</a>`
+                                    ) :
+                                    `<span class="detail-link detail-link--disabled">PDF document unavailable</span>`
+                                )
                             }
                             ${paper.websiteUrl && paper.websiteUrl !== '#' ? 
                                 `<a href="${paper.websiteUrl}" target="_blank" class="detail-link detail-link--secondary">🌐 Website Link</a>` :
@@ -2550,20 +2555,28 @@ class LiteratureManager {
     
     // Override PDF viewing for static mode
     async openPDFViewerStatic(paperId) {
+        // Close the paper details modal first
+        this.hidePaperModal();
+        
         if (this.isStaticMode) {
             try {
-                // Load full paper data including PDF
+                // Show loading notification
+                this.showNotification('Loading PDF file...', 'info');
+                
+                // Load full paper data including PDF from static data
                 const paperData = await this.staticLoader.getPaperData(paperId);
                 
-                if (paperData && paperData.pdfUrl) {
-                    // Use the existing PDF viewer with the blob URL
-                    this.viewPDF(paperData.pdfUrl, paperData.title);
+                if (paperData && paperData.pdfBase64) {
+                    console.log('PDF data loaded, showing viewer...');
+                    // Use the base64 PDF data directly
+                    this.showPdfViewer(paperData.pdfBase64, paperData.title);
                 } else {
+                    console.error('No PDF data found for paper:', paperId);
                     this.showNotification('PDF file not available for this paper', 'warning');
                 }
             } catch (error) {
                 console.error('Failed to load PDF in static mode:', error);
-                this.showNotification('Failed to load PDF file', 'error');
+                this.showNotification('Failed to load PDF file: ' + error.message, 'error');
             }
         } else {
             // Use original method for local storage mode
