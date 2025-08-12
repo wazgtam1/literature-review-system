@@ -1,0 +1,102 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-08-12T15:39:07.190Z",
+  "totalPapers": 15,
+  "categories": {
+    "Accessible Interaction": [
+      "paper_1755012398400_120ufzd0v",
+      "paper_1755012408962_o6czcq3co",
+      "paper_1755012427849_szrrsc3xp"
+    ],
+    "HCI New Wearable Devices": [
+      "paper_1755012802995_hd3jxjq4v",
+      "paper_1755012812341_o9q0gpcnl",
+      "paper_1755012823221_hgpebwxaw"
+    ],
+    "Immersive Interaction": [
+      "paper_1755012840229_xubsae919",
+      "paper_1755012848423_1zpipyg98",
+      "paper_1755012868308_poaix58y8"
+    ],
+    "Mobile Device": [
+      "paper_1755012873112_uox0kdkhm",
+      "paper_1755012900925_ddfp5h7z0",
+      "paper_1755012924550_nypvp1km2",
+      "paper_1755012934659_v7rt6plbc"
+    ],
+    "General": [
+      "paper_1755012884016_lgvpxlirq",
+      "paper_1755012915606_umkj2ye2n"
+    ]
+  },
+  "years": [
+    2022,
+    2021,
+    2020,
+    2019,
+    2016,
+    2015,
+    2014,
+    2013,
+    2012,
+    2008,
+    2006,
+    2001
+  ],
+  "venues": [],
+  "keywords": [
+    "Channel State Information.  ACM Classification Keywords  H.",
+    "Distributed presentations",
+    "Ear-based interaction",
+    "Interaction Vocabulary.  ACM Reference Format:  Beat Rossmy",
+    "Micro gestures",
+    "Micro-motion Recognition",
+    "Sonja Rümelin",
+    "String Instrument Inspired",
+    "TUI",
+    "Touchscreen",
+    "Visualization",
+    "Wireless",
+    "YouTube",
+    "and Alexander Wiethoff.",
+    "assistive technology",
+    "awareness",
+    "bimanual manipulation",
+    "co- design.  ACM Classification Keywords  H.",
+    "conductor’s gestures",
+    "data-driven control method",
+    "device augmentation",
+    "ear-worn",
+    "experiment  ACM Classification Keywords  H",
+    "expressivity",
+    "extra robotic fingers",
+    "eyes-free",
+    "finger animation",
+    "flex sensor",
+    "force-sensitive resistor",
+    "gesture recognition",
+    "hands",
+    "iPad",
+    "iPhone.  ACM Classification Keywords  H.",
+    "interaction",
+    "mixed reality boundaries",
+    "mobile interaction",
+    "motion capture  ∗ e-mail:hoyetl@tcd.ie  † e-mail:ryallk@tcd.ie  ‡ e-mail:ramcdonn@cs.tcd.ie  § e-mail:carol.osullivan@cs.tcd.ie  1",
+    "motor   impairments",
+    "multi-touch",
+    "multi-touch.  ACM Classification Keywords  H.",
+    "music  ACM Classification Keywords  H.",
+    "neural network",
+    "perception",
+    "physical   disabilities",
+    "spatial integration",
+    "touch",
+    "virtual reality  1",
+    "visual impairment",
+    "wearables"
+  ],
+  "dataFiles": {
+    "papers": "papers.json",
+    "thumbnails": "thumbnails.json"
+  }
+}
