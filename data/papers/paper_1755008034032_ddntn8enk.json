@@ -1,0 +1,24 @@
+{
+  "title": "Test Paper - Application of AI in Education",
+  "authors": [
+    "Test Author A",
+    "Test Author B"
+  ],
+  "year": 2024,
+  "journal": "Test Journal",
+  "researchArea": "Machine Learning",
+  "methodology": "Experimental",
+  "studyType": "Empirical",
+  "keywords": [
+    "AI",
+    "Education",
+    "Machine Learning"
+  ],
+  "citations": 5,
+  "hIndex": 2,
+  "downloads": 100,
+  "abstract": "This is a test paper to verify the system's paper adding and display functionality.",
+  "doi": "10.test/testpaper.2024",
+  "websiteUrl": "#",
+  "id": "paper_1755008034032_ddntn8enk"
+}
