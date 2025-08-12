@@ -17,7 +17,7 @@ class LiteratureManager {
         // Initialize static data support
         this.staticLoader = null;
         this.isStaticMode = false;
-        this.staticExporter = new StaticDataExporter(this);
+        this.staticExporter = null; // Will be initialized later
         
         this.filters = {
             search: '',
@@ -35,15 +35,39 @@ class LiteratureManager {
     }
     
     async init() {
-        // Initialize IndexedDB storage first
-        await this.initStorage();
-        
-        // Load data from IndexedDB or localStorage
-        await this.loadData();
-        
-        this.setupEventListeners();
-        this.initializeFilters();
-        this.applyFilters();
+        try {
+            console.log('Initializing Literature Manager...');
+            
+            // Check if required classes are available
+            if (typeof IndexedDBStorage === 'undefined') {
+                throw new Error('IndexedDBStorage class not found');
+            }
+            if (typeof StaticDataExporter === 'undefined') {
+                throw new Error('StaticDataExporter class not found');
+            }
+            
+            // Initialize static exporter
+            this.staticExporter = new StaticDataExporter(this);
+            console.log('Static exporter initialized');
+            
+            // Initialize IndexedDB storage first
+            await this.initStorage();
+            
+            // Load data from IndexedDB or localStorage
+            await this.loadData();
+            
+            this.setupEventListeners();
+            this.initializeFilters();
+            this.applyFilters();
+            
+            console.log('Literature Manager initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize Literature Manager:', error);
+            // Show user-friendly error message
+            setTimeout(() => {
+                this.showNotification('System initialization failed: ' + error.message, 'error');
+            }, 1000);
+        }
     }
     
     // Initialize IndexedDB storage
@@ -64,14 +88,8 @@ class LiteratureManager {
     
     async loadData() {
         try {
-            // First try to initialize static mode (for deployed version)
-            const staticModeInitialized = await this.initializeStaticMode();
-            if (staticModeInitialized) {
-                return; // Skip local storage loading if static mode is available
-            }
-            
+            // First try to load from IndexedDB (local storage has priority)
             if (this.storageInitialized) {
-                // Try to load from IndexedDB first
                 console.log('Loading data from IndexedDB...');
                 const indexedDBPapers = await this.storage.getAllPapers();
                 
@@ -93,8 +111,16 @@ class LiteratureManager {
                     setTimeout(() => {
                         this.showNotification(`✅ Loaded ${this.papers.length} papers from secure storage`, 'success');
                     }, 500);
-                    return;
+                    
+                    console.log('Recently added papers:', this.papers.slice(-2).map(p => `${p.id}: ${p.title} (${p.year})`));
+                    return; // Successfully loaded from IndexedDB, don't try static mode
                 }
+            }
+            
+            // If IndexedDB is empty or not available, try static mode (for deployed version)
+            const staticModeInitialized = await this.initializeStaticMode();
+            if (staticModeInitialized) {
+                return; // Static mode loaded successfully
             }
             
             // Fallback: Try to load data from localStorage
@@ -270,99 +296,109 @@ class LiteratureManager {
     }
     
     setupEventListeners() {
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            this.filters.search = e.target.value.toLowerCase();
-            this.applyFilters();
-        });
-        
-        document.getElementById('searchBtn').addEventListener('click', () => {
-            this.applyFilters();
-        });
-        
-        // Year range sliders
-        const yearMinSlider = document.getElementById('yearMin');
-        const yearMaxSlider = document.getElementById('yearMax');
-        
-        yearMinSlider.addEventListener('input', (e) => {
-            this.filters.yearMin = parseInt(e.target.value);
-            if (this.filters.yearMin > this.filters.yearMax) {
-                this.filters.yearMax = this.filters.yearMin;
-                yearMaxSlider.value = this.filters.yearMin;
+        try {
+            console.log('Setting up event listeners...');
+            
+            // Search functionality
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            if (!searchInput || !searchBtn) {
+                throw new Error('Search elements not found in DOM');
             }
-            this.updateYearDisplay();
-            this.applyFilters();
-        });
-        
-        yearMaxSlider.addEventListener('input', (e) => {
-            this.filters.yearMax = parseInt(e.target.value);
-            if (this.filters.yearMax < this.filters.yearMin) {
-                this.filters.yearMin = this.filters.yearMax;
-                yearMinSlider.value = this.filters.yearMax;
-            }
-            this.updateYearDisplay();
-            this.applyFilters();
-        });
-        
-        // Citation range inputs
-        document.getElementById('citationMin').addEventListener('input', (e) => {
-            this.filters.citationMin = e.target.value ? parseInt(e.target.value) : null;
-            this.applyFilters();
-        });
-        
-        document.getElementById('citationMax').addEventListener('input', (e) => {
-            this.filters.citationMax = e.target.value ? parseInt(e.target.value) : null;
-            this.applyFilters();
-        });
-        
-        // Venue filter
-        document.getElementById('venueFilter').addEventListener('change', (e) => {
-            this.filters.venue = e.target.value;
-            this.applyFilters();
-        });
-        
-        // Category tab buttons
-        document.querySelectorAll('.category-tab').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.currentCategory = btn.dataset.category;
-                this.filters.category = btn.dataset.category;
+            
+            searchInput.addEventListener('input', (e) => {
+                this.filters.search = e.target.value.toLowerCase();
                 this.applyFilters();
             });
-        });
+            
+            searchBtn.addEventListener('click', () => {
+                this.applyFilters();
+            });
         
-        // Sort functionality
-        document.getElementById('sortSelect').addEventListener('change', (e) => {
-            this.currentSort = e.target.value;
-            this.sortPapers();
-            this.updateView();
-        });
+            // Year range sliders
+            const yearMinSlider = document.getElementById('yearMin');
+            const yearMaxSlider = document.getElementById('yearMax');
         
-        // Reset filters
-        document.getElementById('resetFilters').addEventListener('click', () => {
-            this.resetFilters();
-        });
+            yearMinSlider.addEventListener('input', (e) => {
+                this.filters.yearMin = parseInt(e.target.value);
+                if (this.filters.yearMin > this.filters.yearMax) {
+                    this.filters.yearMax = this.filters.yearMin;
+                    yearMaxSlider.value = this.filters.yearMin;
+                }
+                this.updateYearDisplay();
+                this.applyFilters();
+            });
         
-        // Export functionality
-        document.getElementById('exportBtn').addEventListener('click', () => {
-            this.exportResults();
-        });
+            yearMaxSlider.addEventListener('input', (e) => {
+                this.filters.yearMax = parseInt(e.target.value);
+                if (this.filters.yearMax < this.filters.yearMin) {
+                    this.filters.yearMin = this.filters.yearMax;
+                    yearMinSlider.value = this.filters.yearMax;
+                }
+                this.updateYearDisplay();
+                this.applyFilters();
+            });
         
-        // Export static data for GitHub Pages
-        document.getElementById('exportStaticBtn').addEventListener('click', () => {
-            this.exportStaticData();
-        });
+            // Citation range inputs
+            document.getElementById('citationMin').addEventListener('input', (e) => {
+                this.filters.citationMin = e.target.value ? parseInt(e.target.value) : null;
+                this.applyFilters();
+            });
         
-        // Upload functionality
-        document.getElementById('uploadBtn').addEventListener('click', () => {
-            this.showUploadModal();
-        });
+            document.getElementById('citationMax').addEventListener('input', (e) => {
+                this.filters.citationMax = e.target.value ? parseInt(e.target.value) : null;
+                this.applyFilters();
+            });
         
-        // Visualization modal
-        document.getElementById('visualizationBtn').addEventListener('click', () => {
-            this.showVisualizationModal();
-        });
+            // Venue filter
+            document.getElementById('venueFilter').addEventListener('change', (e) => {
+                this.filters.venue = e.target.value;
+                this.applyFilters();
+            });
+        
+            // Category tab buttons
+            document.querySelectorAll('.category-tab').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    this.currentCategory = btn.dataset.category;
+                    this.filters.category = btn.dataset.category;
+                    this.applyFilters();
+                });
+            });
+            
+            // Sort functionality
+            document.getElementById('sortSelect').addEventListener('change', (e) => {
+                this.currentSort = e.target.value;
+                this.sortPapers();
+                this.updateView();
+            });
+            
+            // Reset filters
+            document.getElementById('resetFilters').addEventListener('click', () => {
+                this.resetFilters();
+            });
+            
+            // Export functionality
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                this.exportResults();
+            });
+            
+            // Export static data for GitHub Pages
+            document.getElementById('exportStaticBtn').addEventListener('click', () => {
+                this.exportStaticData();
+            });
+            
+            // Upload functionality
+            document.getElementById('uploadBtn').addEventListener('click', () => {
+                this.showUploadModal();
+            });
+            
+            // Visualization modal
+            document.getElementById('visualizationBtn').addEventListener('click', () => {
+                this.showVisualizationModal();
+            });
         
         document.getElementById('closeVisualization').addEventListener('click', () => {
             this.hideVisualizationModal();
@@ -530,6 +566,13 @@ class LiteratureManager {
         document.getElementById('testAddBtn').addEventListener('click', () => {
             this.testAddPaper();
         });
+        
+        console.log('Event listeners set up successfully');
+        
+        } catch (error) {
+            console.error('Error setting up event listeners:', error);
+            this.showNotification('Failed to set up interface controls: ' + error.message, 'error');
+        }
     }
     
     initializeFilters() {
@@ -2289,13 +2332,127 @@ class LiteratureManager {
         this.showNotification('Test paper added successfully!', 'success');
     }
     
+    // Show GitHub configuration dialog
+    async showGitHubConfigDialog() {
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.className = 'modal';
+            dialog.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>🚀 GitHub Pages 部署配置</h3>
+                        <button class="modal-close github-close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="github-config-form">
+                            <div class="config-step">
+                                <h4>步骤2: 配置GitHub信息</h4>
+                                <p>输入以下信息：</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Repository Owner *</label>
+                                <input type="text" class="form-control" id="repoOwner" placeholder="你的GitHub用户名">
+                                <small class="form-hint">例如: your-username</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Repository Name *</label>
+                                <input type="text" class="form-control" id="repoName" placeholder="仓库名称">
+                                <small class="form-hint">例如: literature-review</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">GitHub Token *</label>
+                                <input type="password" class="form-control" id="githubToken" placeholder="Personal Access Token (需要repo权限)">
+                                <small class="form-hint">在GitHub Settings > Developer settings > Personal access tokens中创建</small>
+                            </div>
+                            
+                            <div class="deployment-mode">
+                                <h4>部署模式选择</h4>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="deployMode" value="github-releases" checked>
+                                        <span>GitHub Releases + jsDelivr CDN (推荐)</span>
+                                        <small>PDF通过CDN分发，加载更快</small>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="deployMode" value="local-zip">
+                                        <span>本地ZIP文件</span>
+                                        <small>下载ZIP文件手动部署</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn--outline github-cancel-btn">取消</button>
+                        <button class="btn btn--primary github-export-btn">开始导出</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            // Add event listeners
+            const closeBtn = dialog.querySelector('.github-close-btn');
+            const cancelBtn = dialog.querySelector('.github-cancel-btn');
+            const exportBtn = dialog.querySelector('.github-export-btn');
+            
+            const cleanup = () => {
+                document.body.removeChild(dialog);
+            };
+            
+            closeBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            
+            cancelBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(null);
+            });
+            
+            exportBtn.addEventListener('click', () => {
+                const repoOwner = document.getElementById('repoOwner').value.trim();
+                const repoName = document.getElementById('repoName').value.trim();
+                const githubToken = document.getElementById('githubToken').value.trim();
+                const deployMode = document.querySelector('input[name=deployMode]:checked').value;
+                
+                if (!repoOwner || !repoName) {
+                    alert('请填写必填项：Repository Owner 和 Repository Name');
+                    return;
+                }
+                
+                if (deployMode === 'github-releases' && !githubToken) {
+                    alert('GitHub Releases模式需要提供GitHub Token');
+                    return;
+                }
+                
+                cleanup();
+                resolve({
+                    repoOwner,
+                    repoName, 
+                    githubToken,
+                    deployMode
+                });
+            });
+        });
+    }
+    
     // Removed: clearAllData, exportFullBackup, importFullBackup methods
     // These features have been simplified for the final deployment version
     
     // Export static data for GitHub Pages deployment
     async exportStaticData() {
+        // Show GitHub configuration dialog
+        const githubConfig = await this.showGitHubConfigDialog();
+        if (!githubConfig) {
+            return; // User cancelled
+        }
+        
         if (this.papers.length === 0) {
-            alert('No papers to export. Please add some papers first.');
+            alert('No papers to export. Please add some papers first using the "Upload Paper" button.');
             return;
         }
 
@@ -2306,15 +2463,44 @@ class LiteratureManager {
             exportBtn.textContent = '🔄 Exporting...';
             exportBtn.disabled = true;
             
-            this.showNotification('Starting static export for GitHub Pages...', 'info');
+            this.showNotification('Starting static export...', 'info');
             
-            // Use the static exporter to create deployment files
-            await this.staticExporter.downloadAsZip();
-            
-            this.showNotification(`✅ Static export completed! ${this.papers.length} papers exported for GitHub Pages deployment.`, 'success');
-            
-            // Show deployment instructions
-            this.showDeploymentInstructions();
+            if (githubConfig.deployMode === 'github-releases') {
+                // GitHub Releases + CDN mode
+                if (!window.GitHubReleasesUploader) {
+                    throw new Error('GitHub Releases uploader not loaded');
+                }
+                
+                const uploader = new GitHubReleasesUploader({
+                    repoOwner: githubConfig.repoOwner,
+                    repoName: githubConfig.repoName,
+                    token: githubConfig.githubToken
+                });
+                
+                // Export for GitHub Releases
+                const exportResult = await this.staticExporter.exportForGitHubReleases({
+                    repoOwner: githubConfig.repoOwner,
+                    repoName: githubConfig.repoName
+                });
+                
+                this.showNotification('Uploading to GitHub Releases...', 'info');
+                
+                // Deploy to GitHub Releases
+                const deployResult = await uploader.deployToGitHubReleases(exportResult, (progress) => {
+                    if (progress.step === 'uploading_pdfs') {
+                        this.showNotification(`Uploading PDF ${progress.current}/${progress.total}: ${progress.fileName}`, 'info');
+                    }
+                });
+                
+                this.showNotification(`✅ Deployed to GitHub Releases! ${deployResult.uploadResults.length} PDF files uploaded.`, 'success');
+                this.showGitHubDeploymentInstructions(deployResult);
+                
+            } else {
+                // Local ZIP mode
+                await this.staticExporter.downloadAsZip();
+                this.showNotification(`✅ ZIP file downloaded! ${this.papers.length} papers exported.`, 'success');
+                this.showDeploymentInstructions();
+            }
             
         } catch (error) {
             console.error('Static export failed:', error);
@@ -2323,6 +2509,35 @@ class LiteratureManager {
             exportBtn.textContent = originalText;
             exportBtn.disabled = false;
         }
+    }
+    
+    // Show GitHub deployment instructions
+    showGitHubDeploymentInstructions(deployResult) {
+        const instructions = `
+📋 GitHub Releases 部署完成！
+
+🎉 部署结果:
+- Release URL: ${deployResult.release.html_url}
+- 上传的PDF文件: ${deployResult.uploadResults.filter(r => r.success).length}/${deployResult.uploadResults.length}
+- CDN Base URL: ${deployResult.cdnBaseUrl}
+
+📝 下一步操作:
+1. 更新你的仓库文件:
+   - 将JSON数据文件上传到仓库
+   - 确保index.html等文件已更新
+
+2. 启用GitHub Pages:
+   - 访问仓库设置 > Pages
+   - 选择Source: Deploy from a branch
+   - 选择branch: main, folder: / (root)
+
+3. 等待几分钟后访问:
+   https://${deployResult.instructions.summary.repoOwner || 'your-username'}.github.io/${deployResult.instructions.summary.repoName || 'your-repo'}
+
+✨ 你的PDF文件现在可以通过jsDelivr CDN快速访问！
+        `;
+        
+        alert(instructions);
     }
     
     // Show deployment instructions
@@ -2446,7 +2661,7 @@ class LiteratureManager {
     
     async loadPdfContent(pdfUrl) {
         try {
-            // Convert data URL to array buffer if needed
+            // Handle different PDF URL formats
             let pdfData;
             if (pdfUrl.startsWith('data:application/pdf')) {
                 // Convert base64 to array buffer
@@ -2461,8 +2676,19 @@ class LiteratureManager {
                 // Fetch blob data
                 const response = await fetch(pdfUrl);
                 pdfData = await response.arrayBuffer();
+            } else if (pdfUrl.startsWith('https://cdn.jsdelivr.net/') || pdfUrl.startsWith('http')) {
+                // Handle jsDelivr CDN or other HTTP URLs
+                console.log('Loading PDF from CDN:', pdfUrl);
+                const response = await fetch(pdfUrl, {
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch PDF from CDN: ${response.status} ${response.statusText}`);
+                }
+                pdfData = await response.arrayBuffer();
             } else {
-                throw new Error('Unsupported PDF URL format');
+                throw new Error('Unsupported PDF URL format: ' + pdfUrl.substring(0, 50));
             }
             
             // Initialize PDF.js if available

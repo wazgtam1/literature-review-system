@@ -2902,3 +2902,96 @@ select.form-control {
 .papers-list.grid-view:not(.hidden) {
   display: grid;
 }
+
+/* GitHub Configuration Dialog Styles */
+.github-config-form {
+  padding: var(--space-16);
+}
+
+.config-step {
+  margin-bottom: var(--space-24);
+  padding: var(--space-16);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-base);
+  border-left: 4px solid var(--color-primary);
+}
+
+.config-step h4 {
+  color: var(--color-primary);
+  margin: 0 0 var(--space-8) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.config-step p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.form-hint {
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.deployment-mode {
+  margin-top: var(--space-24);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  background: var(--color-white);
+}
+
+.deployment-mode h4 {
+  margin: 0 0 var(--space-16) 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-50);
+}
+
+.radio-option input[type="radio"] {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.radio-option span {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.radio-option small {
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+}
+
+.radio-option input[type="radio"]:checked + span {
+  color: var(--color-primary);
+}

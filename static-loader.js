@@ -57,10 +57,10 @@ class StaticDataLoader {
             // Load paper data
             const paperData = await this.loadJSON(`papers/${paperId}.json`);
             
-            // Convert base64 PDF back to blob URL if available
+            // Handle different PDF storage formats
             if (paperData.pdfBase64) {
                 try {
-                    // Convert base64 to blob
+                    // Convert base64 to blob (legacy support)
                     const response = await fetch(paperData.pdfBase64);
                     const blob = await response.blob();
                     paperData.pdfUrl = URL.createObjectURL(blob);
@@ -72,6 +72,9 @@ class StaticDataLoader {
                 } catch (error) {
                     console.warn(`Failed to convert PDF for paper ${paperId}:`, error);
                 }
+            } else if (paperData.pdfUrl && paperData.pdfUrl.startsWith('https://cdn.jsdelivr.net/')) {
+                // PDF is hosted on jsDelivr CDN - no conversion needed
+                console.log(`Paper ${paperId} uses CDN PDF: ${paperData.pdfUrl}`);
             }
             
             // Cache the result

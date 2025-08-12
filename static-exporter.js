@@ -4,8 +4,8 @@ class StaticDataExporter {
         this.literatureManager = literatureManager;
     }
 
-    // Export all data to static JSON files
-    async exportToStaticFiles() {
+    // Export all data to static JSON files (with GitHub Releases support)
+    async exportToStaticFiles(options = {}) {
         try {
             console.log('Starting static data export...');
             
@@ -18,10 +18,13 @@ class StaticDataExporter {
             // 3. Create index file for fast loading
             const indexData = this.createIndexFile(papersData);
             
-            // 4. Export each paper's full data (including PDF as base64)
-            const paperFiles = await this.exportIndividualPapers();
+            // 4. Export each paper's full data (with PDF handling options)
+            const paperFiles = await this.exportIndividualPapers(options);
             
-            // 5. Create deployment structure
+            // 5. Create PDF files list for GitHub Releases upload
+            const pdfFiles = await this.preparePDFFilesForRelease();
+            
+            // 6. Create deployment structure
             const deploymentFiles = {
                 'data/index.json': indexData,
                 'data/papers.json': papersData,
@@ -30,7 +33,11 @@ class StaticDataExporter {
             };
             
             console.log('Static export completed successfully');
-            return deploymentFiles;
+            return {
+                jsonFiles: deploymentFiles,
+                pdfFiles: pdfFiles,
+                releaseInfo: this.generateReleaseInfo()
+            };
             
         } catch (error) {
             console.error('Export failed:', error);
@@ -144,49 +151,56 @@ class StaticDataExporter {
         };
     }
 
-    // Export individual papers with full data
-    async exportIndividualPapers() {
+    // Export individual papers with full data (GitHub Releases optimized)
+    async exportIndividualPapers(options = {}) {
         const paperFiles = {};
         
         for (const paper of this.literatureManager.papers) {
             try {
                 const paperData = { ...paper };
                 
-                // Convert PDF to base64 if available
                 console.log(`Processing paper ${paper.id}: title="${paper.title}"`);
                 console.log(`Paper has pdfFile:`, !!paper.pdfFile);
                 console.log(`Storage available:`, !!(this.literatureManager.storage && this.literatureManager.storage.db));
                 
                 if (paper.pdfFile || (this.literatureManager.storage && this.literatureManager.storage.db)) {
                     try {
-                        let pdfData = null;
-                        
-                        if (paper.pdfFile) {
-                            // Convert File to base64
-                            console.log(`Converting pdfFile to base64 for paper ${paper.id}`);
-                            pdfData = await this.fileToBase64(paper.pdfFile);
-                        } else if (this.literatureManager.storage && this.literatureManager.storage.db) {
-                            // Get PDF from IndexedDB
-                            console.log(`Getting PDF from IndexedDB for paper ${paper.id}`);
-                            const pdfFile = await this.literatureManager.storage.getPDFFile(paper.id);
-                            console.log(`Retrieved PDF from IndexedDB:`, !!pdfFile, pdfFile ? `size: ${pdfFile.blob?.size || 'unknown'}` : '');
-                            if (pdfFile && pdfFile.blob) {
-                                pdfData = await this.blobToBase64(pdfFile.blob);
-                                paperData.originalFileName = pdfFile.fileName;
-                                console.log(`Converted PDF to base64, length: ${pdfData?.length || 'unknown'}`);
+                        // For GitHub Releases, we store PDF reference instead of base64
+                        if (options.useGitHubReleases) {
+                            const pdfFileName = `${paper.id}.pdf`;
+                            paperData.pdfUrl = `https://cdn.jsdelivr.net/gh/${options.repoOwner}/${options.repoName}@${options.releaseTag}/${pdfFileName}`;
+                            paperData.originalFileName = this.getPdfFileName(paper);
+                            paperData.hasFile = true;
+                            console.log(`✅ Set jsDelivr CDN URL for paper ${paper.id}`);
+                        } else {
+                            // Fallback: convert to base64 (original behavior)
+                            let pdfData = null;
+                            
+                            if (paper.pdfFile) {
+                                console.log(`Converting pdfFile to base64 for paper ${paper.id}`);
+                                pdfData = await this.fileToBase64(paper.pdfFile);
+                            } else if (this.literatureManager.storage && this.literatureManager.storage.db) {
+                                console.log(`Getting PDF from IndexedDB for paper ${paper.id}`);
+                                const pdfFile = await this.literatureManager.storage.getPDFFile(paper.id);
+                                console.log(`Retrieved PDF from IndexedDB:`, !!pdfFile, pdfFile ? `size: ${pdfFile.blob?.size || 'unknown'}` : '');
+                                if (pdfFile && pdfFile.blob) {
+                                    pdfData = await this.blobToBase64(pdfFile.blob);
+                                    paperData.originalFileName = pdfFile.fileName;
+                                    console.log(`Converted PDF to base64, length: ${pdfData?.length || 'unknown'}`);
+                                }
+                            }
+                            
+                            if (pdfData) {
+                                paperData.pdfBase64 = pdfData;
+                                paperData.hasFile = true;
+                                console.log(`✅ Successfully added PDF data for paper ${paper.id}`);
+                            } else {
+                                console.log(`❌ No PDF data found for paper ${paper.id}`);
                             }
                         }
                         
-                        if (pdfData) {
-                            paperData.pdfBase64 = pdfData;
-                            paperData.hasFile = true;
-                            console.log(`✅ Successfully added PDF data for paper ${paper.id}`);
-                        } else {
-                            console.log(`❌ No PDF data found for paper ${paper.id}`);
-                        }
-                        
                     } catch (error) {
-                        console.warn(`Failed to convert PDF for paper ${paper.id}:`, error);
+                        console.warn(`Failed to process PDF for paper ${paper.id}:`, error);
                         paperData.hasFile = false;
                     }
                 } else {
@@ -195,7 +209,11 @@ class StaticDataExporter {
                 
                 // Clean up non-serializable data
                 delete paperData.pdfFile;
-                delete paperData.pdfUrl;
+                if (options.useGitHubReleases) {
+                    delete paperData.pdfBase64; // Don't include base64 when using CDN
+                } else {
+                    delete paperData.pdfUrl; // Don't include URL when using base64
+                }
                 
                 paperFiles[`data/papers/${paper.id}.json`] = paperData;
                 
@@ -227,23 +245,96 @@ class StaticDataExporter {
         });
     }
 
-    // Download all files as ZIP
-    async downloadAsZip() {
-        // Note: You'll need to include JSZip library for this to work
+    // Prepare PDF files for GitHub Releases upload
+    async preparePDFFilesForRelease() {
+        const pdfFiles = [];
+        
+        for (const paper of this.literatureManager.papers) {
+            try {
+                let pdfBlob = null;
+                let fileName = `${paper.id}.pdf`;
+                
+                if (paper.pdfFile) {
+                    pdfBlob = paper.pdfFile;
+                    fileName = this.getPdfFileName(paper) || fileName;
+                } else if (this.literatureManager.storage && this.literatureManager.storage.db) {
+                    const pdfFile = await this.literatureManager.storage.getPDFFile(paper.id);
+                    if (pdfFile && pdfFile.blob) {
+                        pdfBlob = pdfFile.blob;
+                        fileName = pdfFile.fileName || fileName;
+                    }
+                }
+                
+                if (pdfBlob) {
+                    pdfFiles.push({
+                        paperId: paper.id,
+                        fileName: fileName,
+                        standardFileName: `${paper.id}.pdf`, // Standard name for CDN
+                        blob: pdfBlob,
+                        size: pdfBlob.size
+                    });
+                }
+                
+            } catch (error) {
+                console.warn(`Failed to prepare PDF for paper ${paper.id}:`, error);
+            }
+        }
+        
+        return pdfFiles;
+    }
+
+    // Generate release information
+    generateReleaseInfo() {
+        const now = new Date();
+        const version = `v${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}`;
+        
+        return {
+            tag: version,
+            name: `Literature Data Release ${version}`,
+            body: `Automated release of literature review data\n\n` +
+                  `- Export date: ${now.toISOString()}\n` +
+                  `- Total papers: ${this.literatureManager.papers.length}\n` +
+                  `- Contains JSON metadata and PDF files\n\n` +
+                  `Access via jsDelivr CDN: https://cdn.jsdelivr.net/gh/[owner]/[repo]@${version}/`,
+            draft: false,
+            prerelease: false
+        };
+    }
+
+    // Helper: Get PDF filename from paper
+    getPdfFileName(paper) {
+        if (paper.pdfFile && paper.pdfFile.name) {
+            return paper.pdfFile.name;
+        }
+        if (paper.originalFileName) {
+            return paper.originalFileName;
+        }
+        return `${paper.title?.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || paper.id}.pdf`;
+    }
+
+    // Download all files as ZIP (updated for GitHub Releases)
+    async downloadAsZip(options = {}) {
         if (typeof JSZip === 'undefined') {
             alert('JSZip library is required for ZIP download. Please include it in your HTML.');
             return;
         }
 
         try {
-            const files = await this.exportToStaticFiles();
+            const exportResult = await this.exportToStaticFiles(options);
             const zip = new JSZip();
             
-            // Add all files to ZIP
-            Object.entries(files).forEach(([path, data]) => {
+            // Add JSON files
+            Object.entries(exportResult.jsonFiles).forEach(([path, data]) => {
                 const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
                 zip.file(path, content);
             });
+            
+            // Add PDF files (if not using GitHub Releases)
+            if (!options.useGitHubReleases && exportResult.pdfFiles) {
+                exportResult.pdfFiles.forEach(pdfFile => {
+                    zip.file(`pdfs/${pdfFile.standardFileName}`, pdfFile.blob);
+                });
+            }
             
             // Generate and download ZIP
             const blob = await zip.generateAsync({ type: 'blob' });
@@ -259,27 +350,91 @@ class StaticDataExporter {
             URL.revokeObjectURL(url);
             
             console.log('Static data ZIP downloaded successfully');
+            return exportResult;
             
         } catch (error) {
             console.error('Failed to create ZIP:', error);
             alert('Failed to create ZIP file. Check console for details.');
+            throw error;
         }
     }
 
-    // Save individual files (for manual download)
-    async downloadIndividualFiles() {
-        try {
-            const files = await this.exportToStaticFiles();
+    // Export for GitHub Releases (main method)
+    async exportForGitHubReleases(options = {}) {
+        const finalOptions = {
+            useGitHubReleases: true,
+            repoOwner: options.repoOwner || 'your-username',
+            repoName: options.repoName || 'your-repo',
+            releaseTag: null, // Will be auto-generated
+            ...options
+        };
+        
+        const exportResult = await this.exportToStaticFiles(finalOptions);
+        
+        // Auto-generate release tag if not provided
+        if (!finalOptions.releaseTag) {
+            finalOptions.releaseTag = exportResult.releaseInfo.tag;
             
-            // Download each file individually
-            Object.entries(files).forEach(([path, data]) => {
+            // Update PDF URLs with the correct tag
+            const updatedJsonFiles = {};
+            Object.entries(exportResult.jsonFiles).forEach(([path, data]) => {
+                if (path.includes('papers/') && path.endsWith('.json')) {
+                    const paperData = { ...data };
+                    if (paperData.pdfUrl) {
+                        paperData.pdfUrl = paperData.pdfUrl.replace('@undefined', `@${finalOptions.releaseTag}`);
+                    }
+                    updatedJsonFiles[path] = paperData;
+                } else {
+                    updatedJsonFiles[path] = data;
+                }
+            });
+            exportResult.jsonFiles = updatedJsonFiles;
+        }
+        
+        return {
+            ...exportResult,
+            options: finalOptions,
+            instructions: this.generateUploadInstructions(finalOptions, exportResult)
+        };
+    }
+    
+    // Generate instructions for GitHub upload
+    generateUploadInstructions(options, exportResult) {
+        return {
+            steps: [
+                '1. Create a new release on GitHub:',
+                `   - Tag: ${options.releaseTag || exportResult.releaseInfo.tag}`,
+                `   - Title: ${exportResult.releaseInfo.name}`,
+                `   - Description: ${exportResult.releaseInfo.body}`,
+                '',
+                '2. Upload PDF files to the release:',
+                ...exportResult.pdfFiles.map(pdf => `   - ${pdf.standardFileName}`),
+                '',
+                '3. Update your repository with JSON files:',
+                ...Object.keys(exportResult.jsonFiles).map(path => `   - ${path}`),
+                '',
+                '4. Your PDFs will be available via jsDelivr CDN:',
+                `   https://cdn.jsdelivr.net/gh/${options.repoOwner}/${options.repoName}@${options.releaseTag}/[filename].pdf`
+            ],
+            pdfCount: exportResult.pdfFiles.length,
+            jsonFileCount: Object.keys(exportResult.jsonFiles).length
+        };
+    }
+
+    // Save individual files (updated)
+    async downloadIndividualFiles(options = {}) {
+        try {
+            const exportResult = await this.exportToStaticFiles(options);
+            
+            // Download JSON files
+            Object.entries(exportResult.jsonFiles).forEach(([path, data]) => {
                 const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
                 const blob = new Blob([content], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = path.replace(/\//g, '_'); // Replace slashes with underscores
+                a.download = path.replace(/\//g, '_');
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -287,11 +442,27 @@ class StaticDataExporter {
                 URL.revokeObjectURL(url);
             });
             
+            // Download PDF files separately (if available)
+            if (exportResult.pdfFiles) {
+                exportResult.pdfFiles.forEach(pdfFile => {
+                    const url = URL.createObjectURL(pdfFile.blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = pdfFile.standardFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+            }
+            
             console.log('All static files downloaded successfully');
+            return exportResult;
             
         } catch (error) {
             console.error('Failed to download files:', error);
             alert('Failed to download files. Check console for details.');
+            throw error;
         }
     }
 }
